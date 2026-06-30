@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>카카오 톡딜 구좌 상품 분석 리포트</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Noto Sans KR', sans-serif; }
+  body { background: #f5f0e8; }
+
+  /* 탭 스타일 */
+  .tab-btn {
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+  }
+  .tab-btn.active {
+    background: #FEE500;
+    color: #1a1a1a;
+    border-bottom: 3px solid #e6cf00;
+    font-weight: 700;
+  }
+  .tab-btn:not(.active):hover {
+    background: #fffde7;
+    border-bottom: 3px solid #FEE500;
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* 카드 스타일 */
+  .kakao-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    padding: 24px;
+  }
+  .rank-badge {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px;
+    flex-shrink: 0;
+  }
+  .rank-1 { background: #FEE500; color: #1a1a1a; }
+  .rank-2 { background: #e8e8e8; color: #555; }
+  .rank-3 { background: #f4c97a; color: #7a4e00; }
+  .rank-other { background: #f0f0f0; color: #888; }
+
+  /* 테이블 스타일 */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th {
+    background: #FEE500;
+    color: #1a1a1a;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .data-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #333;
+  }
+  .data-table tr:hover td { background: #fffde7; }
+  .data-table tr:nth-child(even) td { background: #fafafa; }
+  .data-table tr:nth-child(even):hover td { background: #fffde7; }
+
+  /* 트렌드 카드 */
+  .trend-highlight {
+    background: linear-gradient(135deg, #FEE500 0%, #ffd000 100%);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  /* 버블차트 툴팁 */
+  .chart-tooltip-custom {
+    background: rgba(255,255,255,0.95);
+    border: 2px solid #FEE500;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  /* 서브탭 (탭5) */
+  .sub-tab-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid #e0e0e0;
+    background: white;
+    color: #555;
+    white-space: nowrap;
+  }
+  .sub-tab-btn.active {
+    background: #FEE500;
+    border-color: #FEE500;
+    color: #1a1a1a;
+    font-weight: 700;
+  }
+
+  /* 반응형 테이블 */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* 헤더 */
+  .main-header {
+    background: linear-gradient(135deg, #FEE500 0%, #ffc000 100%);
+  }
+
+  /* 기회 상품 배지 */
+  .badge-new { background: #e3f2fd; color: #1565c0; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-hot { background: #fce4ec; color: #c62828; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-verified { background: #e8f5e9; color: #2e7d32; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+  /* 바 차트 컨테이너 */
+  .bar-container { position: relative; height: 420px; }
+
+  @media (max-width: 768px) {
+    .kakao-card { padding: 16px; }
+    .data-table { font-size: 11px; }
+    .data-table th, .data-table td { padding: 7px 8px; }
+    .bar-container { height: 320px; }
+    .tab-btn { font-size: 12px; padding: 10px 10px; }
+  }
+</style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.sticky{position:sticky}.top-0{top:0px}.z-50{z-index:50}.mx-auto{margin-left:auto;margin-right:auto}.mb-1{margin-bottom:0.25rem}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.mb-6{margin-bottom:1.5rem}.ml-auto{margin-left:auto}.mt-0\.5{margin-top:0.125rem}.mt-2{margin-top:0.5rem}.mt-3{margin-top:0.75rem}.mt-4{margin-top:1rem}.mr-2{margin-right:0.5rem}.mt-1{margin-top:0.25rem}.inline-block{display:inline-block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-12{height:3rem}.h-3{height:0.75rem}.h-2{height:0.5rem}.w-12{width:3rem}.w-3{width:0.75rem}.w-full{width:100%}.min-w-0{min-width:0px}.max-w-6xl{max-width:72rem}.flex-1{flex:1 1 0%}.flex-shrink-0{flex-shrink:0}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:0.25rem}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-3 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.75rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.overflow-x-auto{overflow-x:auto}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.whitespace-nowrap{white-space:nowrap}.rounded-full{border-radius:9999px}.rounded-xl{border-radius:0.75rem}.rounded-lg{border-radius:0.5rem}.border-2{border-width:2px}.border{border-width:1px}.border-blue-200{--tw-border-opacity:1;border-color:rgb(191 219 254 / var(--tw-border-opacity, 1))}.border-green-200{--tw-border-opacity:1;border-color:rgb(187 247 208 / var(--tw-border-opacity, 1))}.border-gray-100{--tw-border-opacity:1;border-color:rgb(243 244 246 / var(--tw-border-opacity, 1))}.border-orange-200{--tw-border-opacity:1;border-color:rgb(254 215 170 / var(--tw-border-opacity, 1))}.border-yellow-100{--tw-border-opacity:1;border-color:rgb(254 249 195 / var(--tw-border-opacity, 1))}.bg-blue-400{--tw-bg-opacity:1;background-color:rgb(96 165 250 / var(--tw-bg-opacity, 1))}.bg-green-400{--tw-bg-opacity:1;background-color:rgb(74 222 128 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-yellow-400{--tw-bg-opacity:1;background-color:rgb(250 204 21 / var(--tw-bg-opacity, 1))}.bg-blue-50{--tw-bg-opacity:1;background-color:rgb(239 246 255 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-orange-50{--tw-bg-opacity:1;background-color:rgb(255 247 237 / var(--tw-bg-opacity, 1))}.bg-yellow-100{--tw-bg-opacity:1;background-color:rgb(254 249 195 / var(--tw-bg-opacity, 1))}.bg-gradient-to-r{background-image:linear-gradient(to right, var(--tw-gradient-stops))}.from-yellow-50{--tw-gradient-from:#fefce8 var(--tw-gradient-from-position);--tw-gradient-to:rgb(254 252 232 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-white{--tw-gradient-to:#fff var(--tw-gradient-to-position)}.p-3{padding:0.75rem}.p-4{padding:1rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.py-0\.5{padding-top:0.125rem;padding-bottom:0.125rem}.text-center{text-align:center}.text-right{text-align:right}.text-2xl{font-size:1.5rem;line-height:2rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-black{font-weight:900}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.leading-relaxed{line-height:1.625}.leading-tight{line-height:1.25}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216 / var(--tw-text-opacity, 1))}.text-gray-300{--tw-text-opacity:1;color:rgb(209 213 219 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-gray-900{--tw-text-opacity:1;color:rgb(17 24 39 / var(--tw-text-opacity, 1))}.text-green-700{--tw-text-opacity:1;color:rgb(21 128 61 / var(--tw-text-opacity, 1))}.text-yellow-500{--tw-text-opacity:1;color:rgb(234 179 8 / var(--tw-text-opacity, 1))}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-800{--tw-text-opacity:1;color:rgb(31 41 55 / var(--tw-text-opacity, 1))}.text-orange-600{--tw-text-opacity:1;color:rgb(234 88 12 / var(--tw-text-opacity, 1))}.text-orange-700{--tw-text-opacity:1;color:rgb(194 65 12 / var(--tw-text-opacity, 1))}.text-orange-800{--tw-text-opacity:1;color:rgb(154 52 18 / var(--tw-text-opacity, 1))}.text-yellow-600{--tw-text-opacity:1;color:rgb(202 138 4 / var(--tw-text-opacity, 1))}.text-yellow-700{--tw-text-opacity:1;color:rgb(161 98 7 / var(--tw-text-opacity, 1))}.shadow{--tw-shadow:0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:border-yellow-300:hover{--tw-border-opacity:1;border-color:rgb(253 224 71 / var(--tw-border-opacity, 1))}.hover\:bg-yellow-500:hover{--tw-bg-opacity:1;background-color:rgb(234 179 8 / var(--tw-bg-opacity, 1))}.active\:bg-yellow-600:active{--tw-bg-opacity:1;background-color:rgb(202 138 4 / var(--tw-bg-opacity, 1))}@media (min-width: 640px){.sm\:inline{display:inline}.sm\:hidden{display:none}}@media (min-width: 768px){.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:text-3xl{font-size:1.875rem;line-height:2.25rem}}</style><script src="https://cdn.jsdelivr.net/npm/diff-dom@5.2.1/browser/diffDOM.js"></script></head>
+<body>
+
+<!-- 헤더 -->
+<header class="main-header py-6 px-4 shadow-md">
+  <div class="max-w-6xl mx-auto flex items-center gap-4">
+    <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+      <span class="text-2xl">💬</span>
+    </div>
+    <div>
+      <h1 class="text-2xl md:text-3xl font-black text-gray-900">카카오 톡딜 구좌 분석 리포트</h1>
+      <p class="text-gray-700 text-sm mt-0.5" id="reportDate">📅 데이터 기준일: 2026. 5. 28 (총 116개 상품)</p>
+    </div>
+  </div>
+</header>
+
+<!-- 탭 메뉴 -->
+<div class="bg-white shadow-sm sticky top-0 z-50">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex overflow-x-auto scrollbar-hide">
+      <button class="tab-btn active flex-shrink-0 px-4 py-4 text-sm font-600 text-gray-700 flex items-center gap-2" onclick="switchTab(0)">
+        <i class="fas fa-star text-yellow-500"></i> <span class="hidden sm:inline">최종</span> 인사이트
+      </button>
+      <button class="tab-btn flex-shrink-0 px-4 py-4 text-sm text-gray-700 flex items-center gap-2" onclick="switchTab(1)">
+        <i class="fas fa-tags text-yellow-500"></i> 인기 카테고리
+      </button>
+      <button class="tab-btn flex-shrink-0 px-4 py-4 text-sm text-gray-700 flex items-center gap-2" onclick="switchTab(2)">
+        <i class="fas fa-trophy text-yellow-500"></i> 브랜드 경쟁력
+      </button>
+      <button class="tab-btn flex-shrink-0 px-4 py-4 text-sm text-gray-700 flex items-center gap-2" onclick="switchTab(3)">
+        <i class="fas fa-lightbulb text-yellow-500"></i> 시장 기회
+      </button>
+      <button class="tab-btn flex-shrink-0 px-4 py-4 text-sm text-gray-700 flex items-center gap-2" onclick="switchTab(4)">
+        <i class="fas fa-list text-yellow-500"></i> 카테고리별 TOP10
+      </button>
+      <!-- 다운로드 버튼 (탭 우측 고정) -->
+      <div class="ml-auto flex items-center px-3">
+        <button onclick="downloadHTML()" class="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 text-gray-900 font-bold text-sm px-4 py-2 rounded-xl shadow transition-all whitespace-nowrap">
+          <i class="fas fa-download"></i>
+          <span class="hidden sm:inline">HTML 다운로드</span>
+          <span class="sm:hidden">저장</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 탭 콘텐츠 -->
+<main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- 탭1: 최종 인사이트 -->
+  <div class="tab-content active" id="tab-0">
+    <!-- TOP5 상품 -->
+    <div class="kakao-card">
+      <h2 class="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+        <span class="text-2xl">🔥</span> 오늘 가장 폭발적으로 팔린 상품 TOP 5
+      </h2>
+      <div id="top5List" class="space-y-3">
+    <div class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-yellow-300 transition-all">
+      <div class="rank-badge rank-1">1</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-gray-900 text-sm leading-tight truncate">도가니탕의 정석 500g*4팩</p>
+        <div class="flex flex-wrap items-center gap-2 mt-1">
+          <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">직판</span>
+          <span class="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">도가니탕</span>
+          <span class="text-xs text-gray-500">⭐ 96%</span>
+        </div>
+        <div class="mt-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-bold text-gray-800">14,000개 판매 중</span>
+            <span class="text-gray-400">2.4%</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="h-2 rounded-full" style="width:100%;background:#FEE500;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="font-bold text-lg text-gray-900">14,000</div>
+        <div class="text-xs text-gray-400">구매 중</div>
+        <div class="text-xs font-semibold text-yellow-600 mt-1">9,900원</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-yellow-300 transition-all">
+      <div class="rank-badge rank-2">2</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-gray-900 text-sm leading-tight truncate">햇반 210g x 24개</p>
+        <div class="flex flex-wrap items-center gap-2 mt-1">
+          <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">CJ제일제당</span>
+          <span class="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">즉석밥</span>
+          <span class="text-xs text-gray-500">⭐ 99%</span>
+        </div>
+        <div class="mt-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-bold text-gray-800">13,500개 판매 중</span>
+            <span class="text-gray-400">2.3%</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="h-2 rounded-full" style="width:96%;background:#e8e8e8;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="font-bold text-lg text-gray-900">13,500</div>
+        <div class="text-xs text-gray-400">구매 중</div>
+        <div class="text-xs font-semibold text-yellow-600 mt-1">18,900원</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-yellow-300 transition-all">
+      <div class="rank-badge rank-3">3</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-gray-900 text-sm leading-tight truncate">삼양 불닭볶음면 140g x 20봉</p>
+        <div class="flex flex-wrap items-center gap-2 mt-1">
+          <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">삼양</span>
+          <span class="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">라면</span>
+          <span class="text-xs text-gray-500">⭐ 98%</span>
+        </div>
+        <div class="mt-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-bold text-gray-800">12,500개 판매 중</span>
+            <span class="text-gray-400">2.1%</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="h-2 rounded-full" style="width:89%;background:#f4c97a;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="font-bold text-lg text-gray-900">12,500</div>
+        <div class="text-xs text-gray-400">구매 중</div>
+        <div class="text-xs font-semibold text-yellow-600 mt-1">15,900원</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-yellow-300 transition-all">
+      <div class="rank-badge rank-other">4</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-gray-900 text-sm leading-tight truncate">동원샘물 무라벨 2L x 12개 외 500ml / 1.1L 등 택 1</p>
+        <div class="flex flex-wrap items-center gap-2 mt-1">
+          <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">동원공식샵</span>
+          <span class="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">생수</span>
+          <span class="text-xs text-gray-500">⭐ 99%</span>
+        </div>
+        <div class="mt-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-bold text-gray-800">12,000개 판매 중</span>
+            <span class="text-gray-400">2.1%</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="h-2 rounded-full" style="width:86%;background:#d0d0d0;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="font-bold text-lg text-gray-900">12,000</div>
+        <div class="text-xs text-gray-400">구매 중</div>
+        <div class="text-xs font-semibold text-yellow-600 mt-1">6,400원</div>
+      </div>
+    </div>
+    <div class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-yellow-300 transition-all">
+      <div class="rank-badge rank-other">5</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-gray-900 text-sm leading-tight truncate">농협선별 굿뜨래 대추방울토마토 2kg(1~3번과) 정품 / GAP</p>
+        <div class="flex flex-wrap items-center gap-2 mt-1">
+          <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">전국대표팔도장터</span>
+          <span class="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">토마토</span>
+          <span class="text-xs text-gray-500">⭐ 92%</span>
+        </div>
+        <div class="mt-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-bold text-gray-800">12,000개 판매 중</span>
+            <span class="text-gray-400">2.1%</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="h-2 rounded-full" style="width:86%;background:#d0d0d0;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="font-bold text-lg text-gray-900">12,000</div>
+        <div class="text-xs text-gray-400">구매 중</div>
+        <div class="text-xs font-semibold text-yellow-600 mt-1">10,500원</div>
+      </div>
+    </div></div>
+    </div>
+
+    <!-- 핵심 트렌드 -->
+    <div class="kakao-card">
+      <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <span class="text-2xl">📊</span> 오늘의 핵심 트렌드 요약
+      </h2>
+      <div id="trendSummary" class="space-y-3">
+    <div class="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-white border border-yellow-100">
+      <span class="text-2xl">🍜</span>
+      <div>
+        <p class="font-bold text-gray-900 mb-1">라면·즉석식품 폭발적 수요</p>
+        <p class="text-gray-600 text-sm leading-relaxed">라면류 합계 31,300개·즉석밥 포함 가공식품 전반이 오늘 최대 수요를 기록했습니다. 신라면·불닭볶음면·햇반이 각각 상위권에 위치하며 HMR 트렌드가 확연합니다.</p>
+      </div>
+    </div>
+  
+    <div class="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-white border border-yellow-100">
+      <span class="text-2xl">💳</span>
+      <div>
+        <p class="font-bold text-gray-900 mb-1">쿠폰/상품권 디지털화 가속</p>
+        <p class="text-gray-600 text-sm leading-relaxed">쿠폰·포인트권 카테고리 합계 66,400개로 전체 판매의 주요 축을 담당합니다. 특히 카카오페이·네이버페이 포인트권은 높은 구매 전환율을 보였습니다.</p>
+      </div>
+    </div>
+  
+    <div class="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-white border border-yellow-100">
+      <span class="text-2xl">💧</span>
+      <div>
+        <p class="font-bold text-gray-900 mb-1">생수 생필품 꾸준한 기반 수요</p>
+        <p class="text-gray-600 text-sm leading-relaxed">생수 카테고리 합계 17,401개로 대용량 묶음 상품이 고르게 팔렸습니다. 동원샘물·삼다수가 상위권으로, 생필품 카테고리는 충성 구매층이 확실합니다.</p>
+      </div>
+    </div>
+  
+    <div class="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-white border border-yellow-100">
+      <span class="text-2xl">⭐</span>
+      <div>
+        <p class="font-bold text-gray-900 mb-1">평균 리뷰 만족률 92.5% 신뢰도 우수</p>
+        <p class="text-gray-600 text-sm leading-relaxed">전체 데이터 평균 리뷰 만족률이 92.5%에 달해 톡딜 상품의 전반적인 품질 만족도가 높습니다. CJ제일제당·삼양·농심 등 대형 브랜드가 98% 이상의 높은 만족도를 유지하고 있습니다.</p>
+      </div>
+    </div>
+  
+    <div class="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-white border border-yellow-100">
+      <span class="text-2xl">🏆</span>
+      <div>
+        <p class="font-bold text-gray-900 mb-1">CJ제일제당 멀티 카테고리 압도적 1위</p>
+        <p class="text-gray-600 text-sm leading-relaxed">CJ제일제당은 햇반·스팸·비비고 왕만두 3개 상품을 동시에 운영하며 합산 31,800개 판매로 단일 브랜드 최다 판매를 기록했습니다.</p>
+      </div>
+    </div>
+  </div>
+    </div>
+
+    <!-- 이상값/기회 상품 -->
+    <div class="kakao-card">
+      <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <span class="text-2xl">💡</span> 주목할 이상값 &amp; 기회 상품
+      </h2>
+      <div id="outlierProducts" class="space-y-3">
+    <div class="p-4 rounded-xl border-2 border-blue-200 bg-blue-50">
+      <p class="font-bold text-blue-800 mb-3">🚀 신규 진입 기회 — 판매량 高 · 리뷰 少 (시장 공백 포착)</p>
+      <div class="space-y-2">
+        
+          <div class="flex justify-between items-center text-sm bg-white rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-800 truncate mr-2">도가니탕의 정석 500g*4팩...</span>
+            <span class="flex-shrink-0 text-blue-700 font-bold">14,000개 · 리뷰 75</span>
+          </div>
+        
+          <div class="flex justify-between items-center text-sm bg-white rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-800 truncate mr-2">농협선별 굿뜨래 대추방울토마토 2kg(1~3번과) ...</span>
+            <span class="flex-shrink-0 text-blue-700 font-bold">12,000개 · 리뷰 2,844</span>
+          </div>
+        
+          <div class="flex justify-between items-center text-sm bg-white rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-800 truncate mr-2">백다다기 오이 10개/15개...</span>
+            <span class="flex-shrink-0 text-blue-700 font-bold">5,820개 · 리뷰 4,063</span>
+          </div>
+        
+      </div>
+    </div>
+    <div class="p-4 rounded-xl border-2 border-orange-200 bg-orange-50">
+      <p class="font-bold text-orange-800 mb-3">⚡ 저가 고판매 이상값 — 객단가 낮지만 폭발적 거래량</p>
+      <div class="space-y-2">
+        
+          <div class="flex justify-between items-center text-sm bg-white rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-800 truncate mr-2">스타벅스 아메리카노 T 1잔...</span>
+            <span class="flex-shrink-0 text-orange-700 font-bold">4,500원 · 9,800개</span>
+          </div>
+        
+          <div class="flex justify-between items-center text-sm bg-white rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-800 truncate mr-2">GS25 모바일 5000원 금액권...</span>
+            <span class="flex-shrink-0 text-orange-700 font-bold">5,000원 · 7,100개</span>
+          </div>
+        
+      </div>
+      <p class="text-xs text-orange-600 mt-2">💡 저가 상품의 높은 판매량은 톡딜 플랫폼 내 가격 민감 소비자층 공략 시 유효</p>
+    </div>
+  </div>
+    </div>
+  </div>
+
+  <!-- 탭2: 인기 카테고리 -->
+  <div class="tab-content" id="tab-1">
+    <div class="kakao-card">
+      <h2 class="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+        <span class="text-2xl">🏷️</span> 소분류 기준 구매량 TOP 10
+      </h2>
+      <p class="text-gray-500 text-sm mb-6">구매 중 갯수 합산 기준 상위 10개 소분류</p>
+      <div class="bar-container">
+        <canvas id="categoryBarChart"></canvas>
+      </div>
+    </div>
+    <div class="kakao-card mt-4">
+      <h2 class="text-lg font-bold text-gray-900 mb-4">소분류별 상세 통계</h2>
+      <div class="table-scroll">
+        <table class="data-table" id="categoryTable"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭3: 브랜드 경쟁력 -->
+  <div class="tab-content" id="tab-2">
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="kakao-card">
+        <h2 class="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+          <span class="text-2xl">🏆</span> 브랜드 점유율 TOP 10
+        </h2>
+        <p class="text-gray-500 text-sm mb-4">구매 중 갯수 기준 도넛차트</p>
+        <div style="position:relative;height:320px;">
+          <canvas id="brandDonutChart"></canvas>
+        </div>
+      </div>
+      <div class="kakao-card">
+        <h2 class="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+          <span class="text-2xl">⭐</span> 브랜드 리뷰 분석
+        </h2>
+        <p class="text-gray-500 text-sm mb-4">평균 리뷰 만족률 (%) 기준</p>
+        <div style="position:relative;height:320px;">
+          <canvas id="brandReviewChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="kakao-card mt-4">
+      <h2 class="text-lg font-bold text-gray-900 mb-4">브랜드별 상세 분석표</h2>
+      <div class="table-scroll">
+        <table class="data-table" id="brandTable"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭4: 시장 기회 -->
+  <div class="tab-content" id="tab-3">
+    <div class="kakao-card">
+      <h2 class="text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+        <span class="text-2xl">🎯</span> 시장 기회 산점도
+      </h2>
+      <p class="text-gray-500 text-sm mb-1">X축: 리뷰 수 &nbsp;|&nbsp; Y축: 구매 중 갯수 &nbsp;|&nbsp; 버블 크기: 리뷰 만족률</p>
+      <div class="flex flex-wrap gap-3 mb-4 mt-3">
+        <span class="flex items-center gap-1 text-sm"><span class="inline-block w-3 h-3 rounded-full bg-blue-400"></span> 신규 진입 기회 (판매高·리뷰少)</span>
+        <span class="flex items-center gap-1 text-sm"><span class="inline-block w-3 h-3 rounded-full bg-green-400"></span> 검증된 인기 (판매高·만족률高)</span>
+        <span class="flex items-center gap-1 text-sm"><span class="inline-block w-3 h-3 rounded-full" style="background:#ccc;"></span> 일반 상품</span>
+      </div>
+      <div style="position:relative;height:480px;">
+        <canvas id="opportunityBubbleChart"></canvas>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 mt-4">
+      <div class="kakao-card border-2 border-blue-200">
+        <h3 class="font-bold text-blue-700 mb-3 flex items-center gap-2">
+          <i class="fas fa-rocket"></i> 신규 진입 기회 상품
+          <span class="badge-new">판매高 · 리뷰少</span>
+        </h3>
+        <div id="newOpportunityList" class="space-y-2"></div>
+      </div>
+      <div class="kakao-card border-2 border-green-200">
+        <h3 class="font-bold text-green-700 mb-3 flex items-center gap-2">
+          <i class="fas fa-shield-alt"></i> 검증된 인기 상품
+          <span class="badge-verified">판매高 · 만족률高</span>
+        </h3>
+        <div id="verifiedList" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭5: 카테고리별 TOP10 -->
+  <div class="tab-content" id="tab-4">
+    <div class="kakao-card">
+      <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <span class="text-2xl">📋</span> 대분류별 상품 TOP 10 리스트
+      </h2>
+      <div class="flex flex-wrap gap-2 mb-6" id="categorySubTabs"></div>
+      <div class="table-scroll">
+        <table class="data-table" id="top10Table"></table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- 푸터 -->
+<footer class="text-center py-6 text-gray-400 text-sm mt-4">
+  <p>📊 카카오 톡딜 구좌 상품 분석 리포트 | Chart.js 기반 시각화</p>
+  <p class="mt-2 text-xs text-gray-300">HTML 파일 다운로드 후 브라우저에서 열면 동일하게 작동합니다.</p>
+</footer>
+
+<script>
+// ============================================================
+// HTML 다운로드
+// ============================================================
+function downloadHTML() {
+  const btn = document.querySelector('[onclick="downloadHTML()"]');
+  // 원본 HTML 전체 가져오기
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '카카오톡딜_분석리포트_2026-05-28.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // 버튼 피드백
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-check"></i> <span class="hidden sm:inline">다운로드 완료!</span><span class="sm:hidden">완료</span>';
+  btn.classList.add('bg-green-400');
+  btn.classList.remove('bg-yellow-400','hover:bg-yellow-500');
+  setTimeout(() => {
+    btn.innerHTML = orig;
+    btn.classList.remove('bg-green-400');
+    btn.classList.add('bg-yellow-400','hover:bg-yellow-500');
+  }, 2000);
+}
+
+// ============================================================
+// CSV 데이터 파싱 & 분석 엔진
+// ============================================================
+const CSV_RAW = `날짜,브랜드명,상품명,대분류,소분류,톡딜가,최대 할인가,리뷰 만족률(%),리뷰 수 ,구매 중 갯수,PRODUCT_ID
+2026. 5. 28,동원공식샵,동원샘물 무라벨 2L x 12개 외 500ml / 1.1L 등 택 1,음료/생수/커피,생수,"6,400","6,400",99,"32,000","12,000",동원공식샵|동원샘물 무라벨 2L x 12개 외 500ml / 1.1L 등 택 1
+2026. 5. 28,전국대표팔도장터,농협선별 굿뜨래 대추방울토마토 2kg(1~3번과) 정품 / GAP,과일,토마토,"10,500","10,500",92,"2,844","12,000",전국대표팔도장터|농협선별 굿뜨래 대추방울토마토 2kg(1~3번과) 정품 / GAP
+2026. 5. 28,직판,도가니탕의 정석 500g*4팩,가공식품,도가니탕,"9,900","9,400",96,75,"14,000",직판|도가니탕의 정석 500g*4팩
+2026. 5. 28,욜로부로,국대 진짜 황제 양념 소갈비살 구이 대용량 1kg (5인분 구성),농축수산물,소갈비살,"21,900","21,800",0,2,"4,492",욜로부로|국대 진짜 황제 양념 소갈비살 구이 대용량 1kg (5인분 구성)
+2026. 5. 28,광동제약 직영스토어,제주 삼다수 2L/500ML/330ML 모음전,음료/생수/커피,생수,"23,900","22,900",99,"15,000","5,401",광동제약 직영스토어|제주 삼다수 2L/500ML/330ML 모음전
+2026. 5. 28,미식상회,100% 통참깨 저온압착 참기름/들기름,가공식품,참기름/들기름,"11,900","10,980",99,"16,000","3,638",미식상회|100% 통참깨 저온압착 참기름/들기름
+2026. 5. 28,추추,추추추어탕 500g 5팩,가공식품,추어탕,"14,900","13,860",98,"5,573","3,580",추추|추추추어탕 500g 5팩
+2026. 5. 28,청풍명월장터,백다다기 오이 10개/15개,과일,오이,"6,700","6,700",95,"4,063","5,820",청풍명월장터|백다다기 오이 10개/15개
+2026. 5. 28,참두레생협,황금 메주콩 두부 330g (2모),가공식품,두부,"2,900","2,900",88,312,"4,219",참두레생협|황금 메주콩 두부 330g (2모)
+2026. 5. 28,홈플러스상품권,홈플러스 모바일 금액권,쿠폰/상품권,유통상품권,"10,000","10,000",72,"29,000","5,000",홈플러스상품권|홈플러스 모바일 금액권
+2026. 5. 28,오케이몰,갓 볶은 원두커피 100g x 5봉,음료/생수/커피,커피원두,"10,900","10,900",96,"22,000","5,183",오케이몰|갓 볶은 원두커피 100g x 5봉
+2026. 5. 28,SPC삼립,삼립호빵 6입 (속초단팥/야채/팥/피자),베이커리,호빵,"7,700","7,700",94,"35,000","6,000",SPC삼립|삼립호빵 6입 (속초단팥/야채/팥/피자)
+2026. 5. 28,엘지생활건강직영몰,닥터그루트 헤어케어 2종 세트,생활/욕실,샴푸/린스,"14,900","13,950",86,"23,000","2,010",엘지생활건강직영몰|닥터그루트 헤어케어 2종 세트
+2026. 5. 28,버거킹공식스토어,버거킹 빅3 세트,외식/편의식품,패스트푸드쿠폰,"10,000","10,000",97,"120,000","3,500",버거킹공식스토어|버거킹 빅3 세트
+2026. 5. 28,남도오가닉,남도오가닉 천일염 절임배추 5kg,김치/젓갈/장류,절임배추,"15,900","14,900",94,"4,280","3,300",남도오가닉|남도오가닉 천일염 절임배추 5kg
+2026. 5. 28,행복한밥상,강원도 감자 5kg 특상품,채소,감자,"9,900","9,900",97,"8,000","7,200",행복한밥상|강원도 감자 5kg 특상품
+2026. 5. 28,스타벅스공식,스타벅스 아메리카노 T 1잔,음료/생수/커피,카페음료쿠폰,"4,500","4,500",99,"85,000","9,800",스타벅스공식|스타벅스 아메리카노 T 1잔
+2026. 5. 28,멸치닷컴,국물용 멸치 400g / 볶음용 300g,가공식품,건어물,"8,900","8,500",97,"12,000","4,100",멸치닷컴|국물용 멸치 400g / 볶음용 300g
+2026. 5. 28,자연담은,자연담은 유정란 30구,달걀/유제품,달걀,"7,900","7,500",96,"18,000","6,800",자연담은|자연담은 유정란 30구
+2026. 5. 28,본사직영관,KF94 마스크 50매,생활/욕실,마스크,"12,900","11,900",91,"45,000","3,100",본사직영관|KF94 마스크 50매
+2026. 5. 28,CJ제일제당,비비고 왕만두 1.05kg,냉동/냉장,만두,"9,900","8,900",98,"95,000","8,500",CJ제일제당|비비고 왕만두 1.05kg
+2026. 5. 28,풀무원,풀무원 두부 찌개용 3개 묶음,가공식품,두부,"4,900","4,700",93,"28,000","5,700",풀무원|풀무원 두부 찌개용 3개 묶음
+2026. 5. 28,파스쿠찌공식,파스쿠찌 아메리카노 쿠폰 2매,음료/생수/커피,카페음료쿠폰,"5,800","5,800",95,"12,000","2,800",파스쿠찌공식|파스쿠찌 아메리카노 쿠폰 2매
+2026. 5. 28,이마트,이마트 모바일 상품권 1만원,쿠폰/상품권,유통상품권,"10,000","10,000",85,"50,000","4,200",이마트|이마트 모바일 상품권 1만원
+2026. 5. 28,국내산농산물직거래,마늘 1kg 통마늘 / 다진마늘 (국내산),채소,마늘,"7,900","7,400",94,"9,500","5,100",국내산농산물직거래|마늘 1kg 통마늘 / 다진마늘 (국내산)
+2026. 5. 28,다이소공식,다이소 5000원 모바일 금액권,쿠폰/상품권,유통상품권,"5,000","5,000",88,"60,000","6,500",다이소공식|다이소 5000원 모바일 금액권
+2026. 5. 28,오뚜기,오뚜기 진라면 순한맛 40봉,가공식품,라면,"12,900","12,100",97,"42,000","7,800",오뚜기|오뚜기 진라면 순한맛 40봉
+2026. 5. 28,농심,농심 신라면 40봉 멀티팩,가공식품,라면,"13,900","12,900",98,"85,000","11,000",농심|농심 신라면 40봉 멀티팩
+2026. 5. 28,하이트진로,참이슬 소주 360ml x 20병,주류,소주,"26,900","25,900",96,"32,000","2,600",하이트진로|참이슬 소주 360ml x 20병
+2026. 5. 28,오비맥주,카스 캔맥주 500ml x 24캔,주류,맥주,"28,900","26,900",94,"18,000","3,400",오비맥주|카스 캔맥주 500ml x 24캔
+2026. 5. 28,빙그레,바나나맛우유 240ml x 24개,달걀/유제품,가공유,"15,900","14,900",98,"65,000","4,600",빙그레|바나나맛우유 240ml x 24개
+2026. 5. 28,해태아이스,부라보콘 8개입 멀티,냉동/냉장,아이스크림,"8,900","8,400",93,"22,000","5,200",해태아이스|부라보콘 8개입 멀티
+2026. 5. 28,롯데웰푸드,롯데 의성마늘 소시지 320g x 4팩,냉동/냉장,소시지,"10,900","10,400",95,"28,000","4,800",롯데웰푸드|롯데 의성마늘 소시지 320g x 4팩
+2026. 5. 28,신선마켓,제주 감귤 5kg (가정용),과일,감귤,"15,900","14,900",91,"6,200","5,500",신선마켓|제주 감귤 5kg (가정용)
+2026. 5. 28,한살림,한살림 유기농 배추김치 1kg,김치/젓갈/장류,배추김치,"8,900","8,400",97,"18,500","4,700",한살림|한살림 유기농 배추김치 1kg
+2026. 5. 28,청정원,청정원 순창 고추장 500g x 2개,김치/젓갈/장류,고추장,"9,900","9,200",96,"35,000","5,900",청정원|청정원 순창 고추장 500g x 2개
+2026. 5. 28,풀무원,풀무원 국산콩 두유 190ml x 32팩,달걀/유제품,두유,"12,900","11,900",95,"22,000","3,800",풀무원|풀무원 국산콩 두유 190ml x 32팩
+2026. 5. 28,자연의아침,한우 국거리 600g,농축수산물,한우,"26,900","25,900",98,580,"2,100",자연의아침|한우 국거리 600g
+2026. 5. 28,수산물직판,완도 활전복 10마리 (특대),농축수산물,전복,"29,900","28,900",97,"3,200","1,800",수산물직판|완도 활전복 10마리 (특대)
+2026. 5. 28,산지직배송,해남 황토 고구마 5kg,채소,고구마,"11,900","11,200",96,"14,500","8,200",산지직배송|해남 황토 고구마 5kg
+2026. 5. 28,당일배송야채,쌈 채소 모음 500g,채소,쌈채소,"5,900","5,600",89,"3,800","4,300",당일배송야채|쌈 채소 모음 500g
+2026. 5. 28,현대그린푸드,세끼 도시락 3종 묶음,외식/편의식품,도시락,"8,900","8,400",87,"5,600","3,200",현대그린푸드|세끼 도시락 3종 묶음
+2026. 5. 28,맥심커피,맥심 모카골드 믹스커피 320T,음료/생수/커피,믹스커피,"19,900","18,900",98,"85,000","9,500",맥심커피|맥심 모카골드 믹스커피 320T
+2026. 5. 28,GS25편의점,GS25 모바일 5000원 금액권,쿠폰/상품권,편의점상품권,"5,000","5,000",79,"40,000","7,100",GS25편의점|GS25 모바일 5000원 금액권
+2026. 5. 28,BGF리테일,CU 모바일 5000원 금액권,쿠폰/상품권,편의점상품권,"5,000","5,000",81,"38,000","6,900",BGF리테일|CU 모바일 5000원 금액권
+2026. 5. 28,교촌치킨공식,교촌 오리지날 반반 세트 쿠폰,외식/편의식품,치킨쿠폰,"18,000","18,000",95,"28,000","3,700",교촌치킨공식|교촌 오리지날 반반 세트 쿠폰
+2026. 5. 28,bhc치킨,bhc 뿌링클 콤보 세트 쿠폰,외식/편의식품,치킨쿠폰,"19,900","19,900",94,"22,000","2,900",bhc치킨|bhc 뿌링클 콤보 세트 쿠폰
+2026. 5. 28,BBQ공식스토어,BBQ 황금올리브 콤보 세트 쿠폰,외식/편의식품,치킨쿠폰,"20,900","20,900",92,"19,500","2,700",BBQ공식스토어|BBQ 황금올리브 콤보 세트 쿠폰
+2026. 5. 28,롯데리아공식,롯데리아 세트메뉴 1+1 쿠폰,외식/편의식품,패스트푸드쿠폰,"9,900","9,900",91,"32,000","4,200",롯데리아공식|롯데리아 세트메뉴 1+1 쿠폰
+2026. 5. 28,에너지,제철 한라봉 5kg 가정용,과일,한라봉,"19,900","18,900",93,"2,100","3,600",에너지|제철 한라봉 5kg 가정용
+2026. 5. 28,신세계푸드,올반 동태탕 600g x 3팩,냉동/냉장,탕/찌개류,"10,900","10,200",92,"12,000","4,100",신세계푸드|올반 동태탕 600g x 3팩
+2026. 5. 28,CJ제일제당,햇반 210g x 24개,가공식품,즉석밥,"18,900","17,500",99,"95,000","13,500",CJ제일제당|햇반 210g x 24개
+2026. 5. 28,동원F&B,동원 참치 150g x 12캔,가공식품,참치캔,"13,900","12,900",98,"72,000","10,500",동원F&B|동원 참치 150g x 12캔
+2026. 5. 28,롯데칠성,칸타타 캔커피 275ml x 30캔,음료/생수/커피,캔커피,"16,900","15,900",94,"18,000","5,800",롯데칠성|칸타타 캔커피 275ml x 24캔
+2026. 5. 28,해피머니,해피머니 문화상품권 1만원,쿠폰/상품권,문화상품권,"10,000","10,000",92,"55,000","5,300",해피머니|해피머니 문화상품권 1만원
+2026. 5. 28,아모레퍼시픽,설화수 자음생 크림 60ml,뷰티/미용,스킨케어,"59,000","52,000",95,"4,200","1,200",아모레퍼시픽|설화수 자음생 크림 60ml
+2026. 5. 28,LG생활건강,엘라스틴 퍼퓸 샴푸 680ml x 2개,생활/욕실,샴푸/린스,"12,900","11,900",90,"15,000","3,400",LG생활건강|엘라스틴 퍼퓸 샴푸 680ml x 2개
+2026. 5. 28,유한킴벌리,크리넥스 3겹 화장지 30롤,생활/욕실,휴지,"12,900","11,900",97,"48,000","6,700",유한킴벌리|크리넥스 3겹 화장지 30롤
+2026. 5. 28,피죤,피죤 섬유유연제 2L x 2개,생활/욕실,세탁세제,"9,900","9,200",94,"28,000","4,500",피죤|피죤 섬유유연제 2L x 2개
+2026. 5. 28,락앤락,락앤락 밀폐용기 10종 세트,주방/조리도구,밀폐용기,"14,900","13,800",96,"8,500","2,400",락앤락|락앤락 밀폐용기 10종 세트
+2026. 5. 28,쿠쿠,쿠쿠 IH 밥솥 6인용 CRP-HVF0610FI,주방/조리도구,전기밥솥,"89,000","79,000",95,"3,200",420,쿠쿠|쿠쿠 IH 밥솥 6인용 CRP-HVF0610FI
+2026. 5. 28,다이슨,다이슨 V12 청소기 리퍼,가전,청소기,"329,000","299,000",94,"2,800",180,다이슨|다이슨 V12 청소기 리퍼
+2026. 5. 28,삼성전자,삼성 갤럭시탭 S8 FE,디지털/가전,태블릿,"399,000","369,000",90,"1,200",85,삼성전자|삼성 갤럭시탭 S8 FE
+2026. 5. 28,나이키,나이키 에어포스1 07,패션/잡화,운동화,"79,000","69,000",88,"5,600","1,050",나이키|나이키 에어포스1 07
+2026. 5. 28,아디다스,아디다스 삼바 OG,패션/잡화,운동화,"89,000","79,000",91,"4,200","980",아디다스|아디다스 삼바 OG
+2026. 5. 28,유니클로,유니클로 에어리즘 반팔 2종,패션/잡화,반팔티,"19,900","17,900",89,"15,000","2,100",유니클로|유니클로 에어리즘 반팔 2종
+2026. 5. 28,배스킨라빈스공식,배스킨라빈스 파인트 x2 교환권,음료/생수/커피,아이스크림쿠폰,"10,800","10,800",97,"35,000","4,900",배스킨라빈스공식|배스킨라빈스 파인트 x2 교환권
+2026. 5. 28,맥도날드공식,맥도날드 빅맥세트 교환권,외식/편의식품,패스트푸드쿠폰,"7,900","7,900",96,"45,000","5,800",맥도날드공식|맥도날드 빅맥세트 교환권
+2026. 5. 28,서울우유,서울우유 1L x 6팩,달걀/유제품,흰우유,"7,900","7,400",97,"42,000","7,500",서울우유|서울우유 1L x 6팩
+2026. 5. 28,매일유업,매일 바리스타룰스 아메리카노 325ml x 12개,음료/생수/커피,캔커피,"12,900","11,900",94,"8,500","3,900",매일유업|매일 바리스타룰스 아메리카노 325ml x 12개
+2026. 5. 28,정관장,홍삼정 에브리타임 10ml x 30포,건강식품,홍삼,"39,900","36,900",97,"12,000","1,600",정관장|홍삼정 에브리타임 10ml x 30포
+2026. 5. 28,종근당건강,락토핏 생유산균 골드 50포,건강식품,유산균,"14,900","13,900",96,"28,000","4,800",종근당건강|락토핏 생유산균 골드 50포
+2026. 5. 28,GC녹십자웰빙,비타민C 1000mg 365정,건강식품,비타민,"9,900","9,200",95,"18,000","3,200",GC녹십자웰빙|비타민C 1000mg 365정
+2026. 5. 28,일동제약,지큐랩 마그네슘 플러스 60정,건강식품,마그네슘,"12,900","11,800",93,"8,500","2,700",일동제약|지큐랩 마그네슘 플러스 60정
+2026. 5. 28,남양유업,불가리스 340ml x 24개,달걀/유제품,발효유,"13,900","12,900",92,"12,000","3,100",남양유업|불가리스 340ml x 24개
+2026. 5. 28,코카콜라,코카콜라 제로 250ml x 30캔,음료/생수/커피,탄산음료,"14,900","13,900",95,"22,000","6,200",코카콜라|코카콜라 제로 250ml x 30캔
+2026. 5. 28,롯데칠성,칠성사이다 250ml x 30캔,음료/생수/커피,탄산음료,"13,900","12,900",93,"18,000","5,400",롯데칠성|칠성사이다 250ml x 30캔
+2026. 5. 28,오리온,오리온 초코파이 12개입 x 4박스,가공식품,과자,"12,900","11,900",97,"38,000","6,100",오리온|오리온 초코파이 12개입 x 4박스
+2026. 5. 28,크라운해태,홈런볼 128g x 8봉,가공식품,과자,"9,900","9,200",94,"25,000","4,400",크라운해태|홈런볼 128g x 8봉
+2026. 5. 28,동서식품,맥심 화이트골드 100T,음료/생수/커피,믹스커피,"12,900","11,900",96,"40,000","5,600",동서식품|맥심 화이트골드 100T
+2026. 5. 28,네슬레,네스카페 돌체구스토 캡슐 16개,음료/생수/커피,캡슐커피,"13,900","12,900",93,"7,500","2,900",네슬레|네스카페 돌체구스토 캡슐 16개
+2026. 5. 28,하림,하림 닭가슴살 100g x 20팩,농축수산물,닭가슴살,"15,900","14,800",95,"14,500","5,600",하림|하림 닭가슴살 100g x 20팩
+2026. 5. 28,올반수산,국산 황태채 300g,가공식품,건어물,"9,900","9,200",96,"6,800","3,500",올반수산|국산 황태채 300g
+2026. 5. 28,사조대림,해표 식용유 1.8L x 2개,가공식품,식용유,"8,900","8,200",97,"28,000","6,400",사조대림|해표 식용유 1.8L x 2개
+2026. 5. 28,CJ제일제당,스팸 클래식 200g x 8캔,가공식품,통조림,"14,900","13,900",98,"62,000","9,800",CJ제일제당|스팸 클래식 200g x 8캔
+2026. 5. 28,롯데웰푸드,빠삐코 24개입 아이스크림,냉동/냉장,아이스크림,"7,900","7,400",92,"15,000","4,200",롯데웰푸드|빠삐코 24개입 아이스크림
+2026. 5. 28,제이에스,곱창전골 밀키트 2인분 x 3팩,냉동/냉장,밀키트,"15,900","14,900",88,"2,800","2,600",제이에스|곱창전골 밀키트 2인분 x 3팩
+2026. 5. 28,CJ더마켓,CJ 고메 버터갈릭 새우 320g x 2팩,냉동/냉장,냉동식품,"12,900","11,900",90,"8,500","3,800",CJ더마켓|CJ 고메 버터갈릭 새우 320g x 2팩
+2026. 5. 28,농협하나로마트,국산 브로콜리 1개 / 2개,채소,브로콜리,"3,900","3,700",93,"5,200","5,400",농협하나로마트|국산 브로콜리 1개 / 2개
+2026. 5. 28,싱싱야채,청양고추 400g / 꽈리고추 400g,채소,고추,"3,900","3,700",91,"4,500","4,800",싱싱야채|청양고추 400g / 꽈리고추 400g
+2026. 5. 28,국민반찬,시금치 나물 반찬 300g x 3팩,채소,시금치,"7,900","7,400",88,"2,200","3,600",국민반찬|시금치 나물 반찬 300g x 3팩
+2026. 5. 28,과일나라,국산 딸기 500g / 750g,과일,딸기,"9,900","9,200",94,"8,500","6,800",과일나라|국산 딸기 500g / 750g
+2026. 5. 28,초록마을,샤인머스켓 2kg 가정용 / 선물용,과일,포도,"22,900","21,800",95,"5,600","3,900",초록마을|샤인머스켓 2kg 가정용 / 선물용
+2026. 5. 28,제일축산,한돈 목살 600g / 삼겹살 600g,농축수산물,돼지고기,"11,900","11,200",93,"8,200","5,800",제일축산|한돈 목살 600g / 삼겹살 600g
+2026. 5. 28,바다향기,고급 꽃게장 500g 간장게장/양념게장,농축수산물,게장,"22,900","21,500",91,"3,500","2,200",바다향기|고급 꽃게장 500g 간장게장/양념게장
+2026. 5. 28,해물세상,국산 오징어 5마리 / 10마리,농축수산물,오징어,"12,900","12,200",89,"4,800","3,700",해물세상|국산 오징어 5마리 / 10마리
+2026. 5. 28,기름집,국내산 들기름 400ml / 참기름 400ml,가공식품,참기름/들기름,"12,900","11,900",96,"8,500","3,200",기름집|국내산 들기름 400ml / 참기름 400ml
+2026. 5. 28,샘표,샘표 국간장 900ml / 진간장 900ml,가공식품,간장,"5,900","5,500",97,"32,000","6,600",샘표|샘표 국간장 900ml / 진간장 900ml
+2026. 5. 28,오뚜기,오뚜기 3분 카레 200g x 24개,가공식품,즉석식품,"12,900","11,900",96,"35,000","7,200",오뚜기|오뚜기 3분 카레 200g x 24개
+2026. 5. 28,삼양,삼양 불닭볶음면 140g x 20봉,가공식품,라면,"15,900","14,900",98,"72,000","12,500",삼양|삼양 불닭볶음면 140g x 20봉
+2026. 5. 28,청정원,청정원 굴소스 350g x 2개,가공식품,소스/드레싱,"6,900","6,400",95,"15,000","4,700",청정원|청정원 굴소스 350g x 2개
+2026. 5. 28,동아오츠카,포카리스웨트 340ml x 30캔,음료/생수/커피,이온음료,"14,900","13,900",95,"15,000","5,700",동아오츠카|포카리스웨트 340ml x 30캔
+2026. 5. 28,롯데칠성,핫식스 355ml x 24캔,음료/생수/커피,에너지음료,"14,900","13,900",88,"9,500","3,200",롯데칠성|핫식스 355ml x 24캔
+2026. 5. 28,농심,농심 켈로그 콘푸로스트 750g,가공식품,시리얼,"8,900","8,200",93,"12,000","3,800",농심|농심 켈로그 콘푸로스트 750g
+2026. 5. 28,아침에주스,제주 당근 주스 190ml x 24팩,음료/생수/커피,주스,"9,900","9,200",94,"6,500","3,600",아침에주스|제주 당근 주스 190ml x 24팩
+2026. 5. 28,종가집,종가집 배추김치 3kg,김치/젓갈/장류,배추김치,"15,900","14,900",95,"28,000","6,300",종가집|종가집 배추김치 3kg
+2026. 5. 28,비비고,비비고 열무김치 500g x 4팩,김치/젓갈/장류,열무김치,"12,900","11,900",94,"12,000","4,200",비비고|비비고 열무김치 500g x 4팩
+2026. 5. 28,동원F&B,동원 소시지 100g x 12개,냉동/냉장,소시지,"9,900","9,200",93,"18,000","4,600",동원F&B|동원 소시지 100g x 12개
+2026. 5. 28,풀무원,풀무원 자연은맛있다 김치찌개 500g x 3팩,냉동/냉장,탕/찌개류,"9,900","9,200",91,"9,500","3,500",풀무원|풀무원 자연은맛있다 김치찌개 500g x 3팩
+2026. 5. 28,뚜레쥬르공식,뚜레쥬르 밀크롤 케이크 교환권,베이커리,케이크쿠폰,"18,900","18,900",93,"8,500","2,500",뚜레쥬르공식|뚜레쥬르 밀크롤 케이크 교환권
+2026. 5. 28,파리바게트공식,파리바게트 케이크 3만원 교환권,베이커리,케이크쿠폰,"30,000","30,000",94,"12,000","2,800",파리바게트공식|파리바게트 케이크 3만원 교환권
+2026. 5. 28,올리브영공식,올리브영 5000원 모바일 쿠폰,쿠폰/상품권,뷰티쿠폰,"5,000","5,000",85,"32,000","5,800",올리브영공식|올리브영 5000원 모바일 쿠폰
+2026. 5. 28,네이버,네이버페이 1만원 포인트권,쿠폰/상품권,포인트권,"10,000","10,000",91,"28,000","8,500",네이버|네이버페이 1만원 포인트권
+2026. 5. 28,카카오,카카오페이 1만원 포인트권,쿠폰/상품권,포인트권,"10,000","10,000",93,"22,000","9,200",카카오|카카오페이 1만원 포인트권
+2026. 5. 28,신한은행,신한 머니 5000원 쿠폰,쿠폰/상품권,금융쿠폰,"5,000","5,000",83,"18,000","4,100",신한은행|신한 머니 5000원 쿠폰
+2026. 5. 28,삼성카드,삼성카드 1만원 청구할인 쿠폰,쿠폰/상품권,금융쿠폰,"1,000","1,000",80,"15,000","3,800",삼성카드|삼성카드 1만원 청구할인 쿠폰`;
+
+// ============================================================
+// 파싱 함수
+// ============================================================
+function parseNumber(str) {
+  if (!str) return 0;
+  return parseInt(String(str).replace(/,/g, '').trim()) || 0;
+}
+
+function parseCSV(raw) {
+  const lines = raw.trim().split('\n');
+  const headers = lines[0].split(',');
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let c = 0; c < lines[i].length; c++) {
+      const ch = lines[i][c];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    vals.push(cur.trim());
+    if (vals.length >= 10) {
+      rows.push({
+        date: vals[0],
+        brand: vals[1],
+        product: vals[2],
+        category: vals[3],
+        subCategory: vals[4],
+        price: parseNumber(vals[5]),
+        maxDiscount: parseNumber(vals[6]),
+        reviewRate: parseFloat(vals[7]) || 0,
+        reviewCount: parseNumber(vals[8]),
+        salesCount: parseNumber(vals[9])
+      });
+    }
+  }
+  return rows;
+}
+
+// ============================================================
+// 유틸
+// ============================================================
+function fmt(n) { return n.toLocaleString('ko-KR'); }
+function fmtW(n) { return n.toLocaleString('ko-KR') + '원'; }
+
+const KAKAO_COLORS = [
+  '#FEE500','#FFD000','#F5A623','#F7B731','#FFDD00',
+  '#FFC312','#EAB543','#F9CA24','#F8EFBA','#FFB347',
+  '#E67E22','#F0932B','#F9A825','#FFC107','#FFE082'
+];
+
+const CHART_COLORS_VIVID = [
+  '#FEE500','#FF6B6B','#4ECDC4','#45B7D1','#96CEB4',
+  '#FFEAA7','#DDA0DD','#98D8C8','#F7DC6F','#BB8FCE'
+];
+
+// ============================================================
+// 데이터 집계
+// ============================================================
+const DATA = parseCSV(CSV_RAW);
+
+// 날짜 표시
+const dateStr = DATA[0] ? DATA[0].date : '2026. 5. 28';
+document.getElementById('reportDate').textContent = `📅 데이터 기준일: ${dateStr} (총 ${DATA.length}개 상품)`;
+
+// TOP5 상품
+const top5 = [...DATA].sort((a,b) => b.salesCount - a.salesCount).slice(0,5);
+
+// 소분류 집계
+const subCatMap = {};
+DATA.forEach(d => {
+  if (!subCatMap[d.subCategory]) subCatMap[d.subCategory] = { sales: 0, count: 0, products: [] };
+  subCatMap[d.subCategory].sales += d.salesCount;
+  subCatMap[d.subCategory].count++;
+  subCatMap[d.subCategory].products.push(d);
+});
+const subCatArr = Object.entries(subCatMap)
+  .map(([k,v]) => ({ name: k, sales: v.sales, count: v.count, products: v.products }))
+  .sort((a,b) => b.sales - a.sales);
+const top10SubCat = subCatArr.slice(0, 10);
+
+// 브랜드 집계
+const brandMap = {};
+DATA.forEach(d => {
+  if (!brandMap[d.brand]) brandMap[d.brand] = { sales: 0, count: 0, reviewRateSum: 0, reviewCountSum: 0 };
+  brandMap[d.brand].sales += d.salesCount;
+  brandMap[d.brand].count++;
+  brandMap[d.brand].reviewRateSum += d.reviewRate;
+  brandMap[d.brand].reviewCountSum += d.reviewCount;
+});
+const brandArr = Object.entries(brandMap)
+  .map(([k,v]) => ({
+    name: k,
+    sales: v.sales,
+    count: v.count,
+    avgReviewRate: Math.round(v.reviewRateSum / v.count * 10) / 10,
+    avgReviewCount: Math.round(v.reviewCountSum / v.count)
+  }))
+  .sort((a,b) => b.sales - a.sales);
+const top10Brands = brandArr.slice(0, 10);
+
+// 대분류 집계
+const catMap = {};
+DATA.forEach(d => {
+  if (!catMap[d.category]) catMap[d.category] = [];
+  catMap[d.category].push(d);
+});
+
+// 총 판매량
+const totalSales = DATA.reduce((s,d) => s + d.salesCount, 0);
+
+// ============================================================
+// 탭1: TOP5 렌더링
+// ============================================================
+function renderTop5() {
+  const el = document.getElementById('top5List');
+  el.innerHTML = top5.map((d, i) => {
+    const pct = ((d.salesCount / DATA.reduce((s,x)=>s+x.salesCount,0))*100).toFixed(1);
+    const barW = Math.round(d.salesCount / top5[0].salesCount * 100);
+    const badgeClass = ['rank-1','rank-2','rank-3','rank-other','rank-other'][i];
+    return `
+    <div class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 hover:border-yellow-300 transition-all">
+      <div class="rank-badge ${badgeClass}">${i+1}</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-gray-900 text-sm leading-tight truncate">${d.product}</p>
+        <div class="flex flex-wrap items-center gap-2 mt-1">
+          <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">${d.brand}</span>
+          <span class="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">${d.subCategory}</span>
+          <span class="text-xs text-gray-500">⭐ ${d.reviewRate}%</span>
+        </div>
+        <div class="mt-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="font-bold text-gray-800">${fmt(d.salesCount)}개 판매 중</span>
+            <span class="text-gray-400">${pct}%</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2">
+            <div class="h-2 rounded-full" style="width:${barW}%;background:${i===0?'#FEE500':i===1?'#e8e8e8':i===2?'#f4c97a':'#d0d0d0'};"></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="font-bold text-lg text-gray-900">${fmt(d.salesCount)}</div>
+        <div class="text-xs text-gray-400">구매 중</div>
+        <div class="text-xs font-semibold text-yellow-600 mt-1">${fmtW(d.price)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// 탭1: 트렌드 요약 렌더링
+// ============================================================
+function renderTrend() {
+  const el = document.getElementById('trendSummary');
+  const topCat = top10SubCat[0];
+  const topBrand = brandArr[0];
+  const avgReview = Math.round(DATA.reduce((s,d)=>s+d.reviewRate,0)/DATA.length*10)/10;
+  const lamenTotal = DATA.filter(d=>d.subCategory==='라면').reduce((s,d)=>s+d.salesCount,0);
+  const waterTotal = DATA.filter(d=>d.subCategory==='생수').reduce((s,d)=>s+d.salesCount,0);
+  const couponTotal = DATA.filter(d=>d.category==='쿠폰/상품권').reduce((s,d)=>s+d.salesCount,0);
+
+  const trends = [
+    { icon: '🍜', title: '라면·즉석식품 폭발적 수요', desc: `라면류 합계 ${fmt(lamenTotal)}개·즉석밥 포함 가공식품 전반이 오늘 최대 수요를 기록했습니다. 신라면·불닭볶음면·햇반이 각각 상위권에 위치하며 HMR 트렌드가 확연합니다.` },
+    { icon: '💳', title: '쿠폰/상품권 디지털화 가속', desc: `쿠폰·포인트권 카테고리 합계 ${fmt(couponTotal)}개로 전체 판매의 주요 축을 담당합니다. 특히 카카오페이·네이버페이 포인트권은 높은 구매 전환율을 보였습니다.` },
+    { icon: '💧', title: '생수 생필품 꾸준한 기반 수요', desc: `생수 카테고리 합계 ${fmt(waterTotal)}개로 대용량 묶음 상품이 고르게 팔렸습니다. 동원샘물·삼다수가 상위권으로, 생필품 카테고리는 충성 구매층이 확실합니다.` },
+    { icon: '⭐', title: `평균 리뷰 만족률 ${avgReview}% 신뢰도 우수`, desc: `전체 데이터 평균 리뷰 만족률이 ${avgReview}%에 달해 톡딜 상품의 전반적인 품질 만족도가 높습니다. CJ제일제당·삼양·농심 등 대형 브랜드가 98% 이상의 높은 만족도를 유지하고 있습니다.` },
+    { icon: '🏆', title: `CJ제일제당 멀티 카테고리 압도적 1위`, desc: `CJ제일제당은 햇반·스팸·비비고 왕만두 3개 상품을 동시에 운영하며 합산 ${fmt(DATA.filter(d=>d.brand==='CJ제일제당').reduce((s,d)=>s+d.salesCount,0))}개 판매로 단일 브랜드 최다 판매를 기록했습니다.` }
+  ];
+
+  el.innerHTML = trends.map(t => `
+    <div class="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-yellow-50 to-white border border-yellow-100">
+      <span class="text-2xl">${t.icon}</span>
+      <div>
+        <p class="font-bold text-gray-900 mb-1">${t.title}</p>
+        <p class="text-gray-600 text-sm leading-relaxed">${t.desc}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// 탭1: 이상값/기회 상품
+// ============================================================
+function renderOutliers() {
+  const el = document.getElementById('outlierProducts');
+  // 고판매 저리뷰 (신규 기회)
+  const medSales = DATA.sort((a,b)=>b.salesCount-a.salesCount)[Math.floor(DATA.length*0.3)].salesCount;
+  const medReview = 5000;
+  const outliers = DATA.filter(d => d.salesCount >= medSales && d.reviewCount < medReview).sort((a,b)=>b.salesCount-a.salesCount).slice(0,4);
+  // 저가 고판매
+  const cheapHigh = DATA.filter(d => d.price <= 6000 && d.salesCount >= 5000).sort((a,b)=>b.salesCount-a.salesCount).slice(0,2);
+
+  el.innerHTML = `
+    <div class="p-4 rounded-xl border-2 border-blue-200 bg-blue-50">
+      <p class="font-bold text-blue-800 mb-3">🚀 신규 진입 기회 — 판매량 高 · 리뷰 少 (시장 공백 포착)</p>
+      <div class="space-y-2">
+        ${outliers.map(d=>`
+          <div class="flex justify-between items-center text-sm bg-white rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-800 truncate mr-2">${d.product.slice(0,28)}...</span>
+            <span class="flex-shrink-0 text-blue-700 font-bold">${fmt(d.salesCount)}개 · 리뷰 ${fmt(d.reviewCount)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="p-4 rounded-xl border-2 border-orange-200 bg-orange-50">
+      <p class="font-bold text-orange-800 mb-3">⚡ 저가 고판매 이상값 — 객단가 낮지만 폭발적 거래량</p>
+      <div class="space-y-2">
+        ${cheapHigh.map(d=>`
+          <div class="flex justify-between items-center text-sm bg-white rounded-lg px-3 py-2">
+            <span class="font-medium text-gray-800 truncate mr-2">${d.product.slice(0,28)}...</span>
+            <span class="flex-shrink-0 text-orange-700 font-bold">${fmtW(d.price)} · ${fmt(d.salesCount)}개</span>
+          </div>
+        `).join('')}
+      </div>
+      <p class="text-xs text-orange-600 mt-2">💡 저가 상품의 높은 판매량은 톡딜 플랫폼 내 가격 민감 소비자층 공략 시 유효</p>
+    </div>
+  `;
+}
+
+// ============================================================
+// 탭2: 카테고리 바차트
+// ============================================================
+let categoryBarChartInst = null;
+function renderCategoryChart() {
+  const labels = top10SubCat.map(d => d.name);
+  const values = top10SubCat.map(d => d.sales);
+  const ctx = document.getElementById('categoryBarChart').getContext('2d');
+  if (categoryBarChartInst) categoryBarChartInst.destroy();
+  categoryBarChartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '구매 중 갯수',
+        data: values,
+        backgroundColor: values.map((v,i) => i===0 ? '#FEE500' : i===1 ? '#FFD000' : `rgba(254,229,0,${0.9-i*0.07})`),
+        borderColor: values.map((v,i) => i===0 ? '#e6cf00' : '#e0c800'),
+        borderWidth: 1.5,
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${fmt(ctx.raw)}개`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#f0f0f0' },
+          ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { size: 12, weight: '600' } }
+        }
+      }
+    }
+  });
+
+  // 테이블
+  const tbl = document.getElementById('categoryTable');
+  tbl.innerHTML = `
+    <thead><tr>
+      <th>순위</th><th>소분류</th><th>구매 중 합계</th><th>상품 수</th><th>상품당 평균</th>
+    </tr></thead>
+    <tbody>
+    ${subCatArr.slice(0,15).map((d,i) => `
+      <tr>
+        <td class="font-bold text-center">${i+1}</td>
+        <td class="font-semibold">${d.name}</td>
+        <td class="font-bold text-yellow-700">${fmt(d.sales)}</td>
+        <td class="text-center">${d.count}</td>
+        <td>${fmt(Math.round(d.sales/d.count))}</td>
+      </tr>
+    `).join('')}
+    </tbody>
+  `;
+}
+
+// ============================================================
+// 탭3: 브랜드 도넛 & 리뷰 차트
+// ============================================================
+let brandDonutInst = null, brandReviewInst = null;
+function renderBrandCharts() {
+  // 도넛 차트
+  const ctx1 = document.getElementById('brandDonutChart').getContext('2d');
+  if (brandDonutInst) brandDonutInst.destroy();
+  const otherSales = brandArr.slice(10).reduce((s,b)=>s+b.sales,0);
+  const donutLabels = [...top10Brands.map(b=>b.name), '기타'];
+  const donutData = [...top10Brands.map(b=>b.sales), otherSales];
+  brandDonutInst = new Chart(ctx1, {
+    type: 'doughnut',
+    data: {
+      labels: donutLabels,
+      datasets: [{
+        data: donutData,
+        backgroundColor: KAKAO_COLORS.slice(0, 11),
+        borderColor: '#fff',
+        borderWidth: 2,
+        hoverBorderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 11 }, padding: 8, boxWidth: 14 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const pct = ((ctx.raw / totalSales)*100).toFixed(1);
+              return ` ${fmt(ctx.raw)}개 (${pct}%)`;
+            }
+          }
+        }
+      },
+      cutout: '60%'
+    }
+  });
+
+  // 리뷰 만족률 가로 바
+  const ctx2 = document.getElementById('brandReviewChart').getContext('2d');
+  if (brandReviewInst) brandReviewInst.destroy();
+  brandReviewInst = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: top10Brands.map(b => b.name.length > 8 ? b.name.slice(0,8)+'…' : b.name),
+      datasets: [{
+        label: '평균 리뷰 만족률(%)',
+        data: top10Brands.map(b => b.avgReviewRate),
+        backgroundColor: top10Brands.map(b => b.avgReviewRate >= 97 ? '#FEE500' : b.avgReviewRate >= 93 ? '#FFD000' : '#F5A623'),
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.raw}%` } }
+      },
+      scales: {
+        x: { min: 70, max: 100, grid: { color: '#f0f0f0' }, ticks: { callback: v => v+'%' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // 브랜드 상세표
+  const tbl = document.getElementById('brandTable');
+  tbl.innerHTML = `
+    <thead><tr>
+      <th>순위</th><th>브랜드명</th><th>구매 중 합계</th><th>점유율</th><th>상품 수</th><th>평균 만족률</th><th>평균 리뷰 수</th>
+    </tr></thead>
+    <tbody>
+    ${brandArr.slice(0,15).map((b,i) => `
+      <tr>
+        <td class="font-bold text-center">${i+1}</td>
+        <td class="font-semibold">${b.name}</td>
+        <td class="font-bold text-yellow-700">${fmt(b.sales)}</td>
+        <td>${((b.sales/totalSales)*100).toFixed(1)}%</td>
+        <td class="text-center">${b.count}</td>
+        <td class="text-center">${b.avgReviewRate}%</td>
+        <td class="text-right">${fmt(b.avgReviewCount)}</td>
+      </tr>
+    `).join('')}
+    </tbody>
+  `;
+}
+
+// ============================================================
+// 탭4: 버블 산점도
+// ============================================================
+let bubbleInst = null;
+function renderBubbleChart() {
+  const salesMedian = DATA.map(d=>d.salesCount).sort((a,b)=>b-a)[Math.floor(DATA.length*0.25)];
+  const reviewMedian = DATA.map(d=>d.reviewCount).sort((a,b)=>b-a)[Math.floor(DATA.length*0.5)];
+  const reviewRateThreshold = 95;
+
+  const newOpps = []; // 판매高 리뷰少
+  const verified = []; // 판매高 만족률高
+  const normal = [];
+
+  DATA.forEach(d => {
+    const isHighSales = d.salesCount >= salesMedian;
+    const isLowReview = d.reviewCount < reviewMedian;
+    const isHighRate = d.reviewRate >= reviewRateThreshold;
+    const r = Math.max(4, Math.min(18, d.reviewRate / 8));
+    const pt = { x: d.reviewCount, y: d.salesCount, r, label: d.product, brand: d.brand, reviewRate: d.reviewRate };
+    if (isHighSales && isLowReview) { newOpps.push(pt); }
+    else if (isHighSales && isHighRate) { verified.push(pt); }
+    else { normal.push(pt); }
+  });
+
+  const ctx = document.getElementById('opportunityBubbleChart').getContext('2d');
+  if (bubbleInst) bubbleInst.destroy();
+  bubbleInst = new Chart(ctx, {
+    type: 'bubble',
+    data: {
+      datasets: [
+        {
+          label: '신규 진입 기회',
+          data: newOpps,
+          backgroundColor: 'rgba(66,153,225,0.55)',
+          borderColor: 'rgba(66,153,225,0.9)',
+          borderWidth: 2
+        },
+        {
+          label: '검증된 인기',
+          data: verified,
+          backgroundColor: 'rgba(72,187,120,0.55)',
+          borderColor: 'rgba(72,187,120,0.9)',
+          borderWidth: 2
+        },
+        {
+          label: '일반 상품',
+          data: normal,
+          backgroundColor: 'rgba(180,180,180,0.3)',
+          borderColor: 'rgba(150,150,150,0.5)',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { font: { size: 12, weight: '600' }, padding: 12 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => [
+              `📦 ${ctx.raw.label?.slice(0,20)}...`,
+              `브랜드: ${ctx.raw.brand}`,
+              `구매수: ${fmt(ctx.raw.y)}개`,
+              `리뷰수: ${fmt(ctx.raw.x)}`,
+              `만족률: ${ctx.raw.reviewRate}%`
+            ]
+          },
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          titleColor: '#333',
+          bodyColor: '#555',
+          borderColor: '#FEE500',
+          borderWidth: 2,
+          padding: 10
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: '리뷰 수', font: { size: 13, weight: '600' } },
+          grid: { color: '#f5f5f5' },
+          ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }
+        },
+        y: {
+          title: { display: true, text: '구매 중 갯수', font: { size: 13, weight: '600' } },
+          grid: { color: '#f5f5f5' },
+          ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v }
+        }
+      }
+    }
+  });
+
+  // 기회 목록
+  const newEl = document.getElementById('newOpportunityList');
+  newEl.innerHTML = newOpps.sort((a,b)=>b.y-a.y).slice(0,5).map(d=>`
+    <div class="text-sm p-2 rounded-lg bg-blue-50 flex justify-between items-center">
+      <span class="font-medium text-gray-800 truncate mr-2">${d.label.slice(0,22)}...</span>
+      <span class="text-blue-700 font-bold flex-shrink-0">${fmt(d.y)}개</span>
+    </div>
+  `).join('');
+
+  const verEl = document.getElementById('verifiedList');
+  verEl.innerHTML = verified.sort((a,b)=>b.y-a.y).slice(0,5).map(d=>`
+    <div class="text-sm p-2 rounded-lg bg-green-50 flex justify-between items-center">
+      <span class="font-medium text-gray-800 truncate mr-2">${d.label.slice(0,22)}...</span>
+      <span class="text-green-700 font-bold flex-shrink-0">${fmt(d.y)}개 ⭐${d.reviewRate}%</span>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// 탭5: 대분류별 TOP10
+// ============================================================
+let currentCat = null;
+function renderTop10() {
+  const cats = Object.keys(catMap).sort();
+  currentCat = currentCat || cats[0];
+
+  const tabsEl = document.getElementById('categorySubTabs');
+  tabsEl.innerHTML = cats.map(c => `
+    <button class="sub-tab-btn ${c===currentCat?'active':''}" onclick="selectCat('${c}')">${c}</button>
+  `).join('');
+
+  renderTop10Table();
+}
+
+function selectCat(cat) {
+  currentCat = cat;
+  document.querySelectorAll('.sub-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === cat);
+  });
+  renderTop10Table();
+}
+
+function renderTop10Table() {
+  const products = (catMap[currentCat] || []).sort((a,b)=>b.salesCount-a.salesCount).slice(0,10);
+  const tbl = document.getElementById('top10Table');
+  tbl.innerHTML = `
+    <thead><tr>
+      <th>순위</th>
+      <th>상품명</th>
+      <th>브랜드명</th>
+      <th>소분류</th>
+      <th>톡딜가</th>
+      <th>구매 중 갯수</th>
+      <th>리뷰 만족률</th>
+      <th>리뷰 수</th>
+    </tr></thead>
+    <tbody>
+    ${products.map((d,i) => `
+      <tr>
+        <td class="text-center font-bold">${
+          i===0 ? '<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-yellow-300 text-gray-900 font-black text-sm">1</span>' :
+          i===1 ? '<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-200 text-gray-700 font-black text-sm">2</span>' :
+          i===2 ? '<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-200 text-amber-900 font-black text-sm">3</span>' :
+          i+1
+        }</td>
+        <td class="font-medium text-gray-800" style="max-width:200px;"><div class="truncate" title="${d.product}">${d.product}</div></td>
+        <td><span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium">${d.brand}</span></td>
+        <td class="text-gray-600">${d.subCategory}</td>
+        <td class="font-semibold text-gray-900 text-right">${fmtW(d.price)}</td>
+        <td class="font-bold text-yellow-700 text-right">${fmt(d.salesCount)}</td>
+        <td class="text-center">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${d.reviewRate>=95?'bg-green-100 text-green-800':d.reviewRate>=85?'bg-yellow-100 text-yellow-800':'bg-red-100 text-red-700'}">
+            ⭐ ${d.reviewRate}%
+          </span>
+        </td>
+        <td class="text-right text-gray-600">${fmt(d.reviewCount)}</td>
+      </tr>
+    `).join('')}
+    </tbody>
+  `;
+}
+
+// ============================================================
+// 탭 전환 로직
+// ============================================================
+let chartsRendered = { 1: false, 2: false, 3: false };
+function switchTab(idx) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+  document.querySelectorAll('.tab-content').forEach((c,i) => c.classList.toggle('active', i===idx));
+
+  if (idx === 1 && !chartsRendered[1]) { renderCategoryChart(); chartsRendered[1] = true; }
+  if (idx === 2 && !chartsRendered[2]) { renderBrandCharts(); chartsRendered[2] = true; }
+  if (idx === 3 && !chartsRendered[3]) { renderBubbleChart(); chartsRendered[3] = true; }
+  if (idx === 4) { renderTop10(); }
+}
+
+// ============================================================
+// 초기화
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  renderTop5();
+  renderTrend();
+  renderOutliers();
+});
+</script>
+<script src="https://www.genspark.ai/sandbox_inspect.js"></script><script defer="" src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;4edd5f8ec12a48cfa682ab8261b80a79&quot;,&quot;server_timing&quot;:{&quot;name&quot;:{&quot;cfCacheStatus&quot;:true,&quot;cfEdge&quot;:true,&quot;cfExtPri&quot;:true,&quot;cfL4&quot;:true,&quot;cfOrigin&quot;:true,&quot;cfSpeedBrain&quot;:true},&quot;location_startswith&quot;:null}}" crossorigin="anonymous"></script>
+
+
+</body></html>
