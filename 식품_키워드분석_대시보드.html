@@ -617,7 +617,7 @@ document.getElementById('heroMeta').textContent =
     byQuad[q] = byQuad[q]
       .sort((a,b) => b.r - a.r)          // 검색량(상품수 프록시) 기준 상위 N개만
       .slice(0, TOP_N)
-      .map(p => ({ x:p.x, y:p.y, r:Math.min(Math.max(Math.sqrt(p.r)/14, 2.5), 7), label:p.label }));
+      .map(p => ({ x:p.x, y:p.y, r:Math.min(Math.max(Math.sqrt(p.r)/14, 2.5), 7), label:p.label, searchVolume:p.r }));
   });
 
   // 비즈니스 우선순위 순서: 기회 구간(블루오션·니치)을 먼저 배치
@@ -647,7 +647,7 @@ document.getElementById('heroMeta').textContent =
       type:'bubble',
       data: { datasets: [{ label:q, data, backgroundColor: color+'70', borderColor: color, borderWidth:1 }] },
       options: {
-        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=> `${c.raw.label} · 검색량log ${c.raw.x} · 경쟁강도 ${c.raw.y}` } } },
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=> `${c.raw.label} · 검색량 ${c.raw.searchVolume.toLocaleString()}회 · 경쟁강도 ${c.raw.y}` } } },
         scales:{
           x:{ title:{display:true,text:'총 검색수(log10)',color:COLORS.ink2,font:{size:9.5}}, grid:{color:COLORS.gridLine}, ticks:{font:{size:9}} },
           y:{ title:{display:true,text:'경쟁강도',color:COLORS.ink2,font:{size:9.5}}, grid:{color:COLORS.gridLine}, ticks:{font:{size:9}} }
